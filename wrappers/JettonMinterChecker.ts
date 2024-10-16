@@ -111,7 +111,12 @@ export const checkJettonMinter = async (
     write('Total Supply: ' + fromUnits(parsedData.supply, decimals));
     write('Mintable: ' + getData.mintable);
     write(`Metadata URL: "${metadataUrl}"`);
-    write('Current admin address: ' + (await formatAddressAndUrl(parsedData.admin, provider, isTestnet)));
+    if(parsedData.admin !== null) {
+        write('Current admin address: ' + (await formatAddressAndUrl(parsedData.admin, provider, isTestnet)));
+    }
+    else {
+        write("Current admin: null");
+    }
     const nextAdminAddress = parsedData.transfer_admin;
     if (!nextAdminAddress) {
         write('Next admin address: null');

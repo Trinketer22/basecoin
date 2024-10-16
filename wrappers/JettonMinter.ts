@@ -15,13 +15,13 @@ export type JettonMinterContent = {
     uri: string
 };
 export type JettonMinterConfig = {
-    admin: Address,
+    admin: Address | null,
     wallet_code: Cell,
     jetton_content: Cell | JettonMinterContent
 };
 export type JettonMinterConfigFull = {
     supply: bigint,
-    admin: Address,
+    admin: Address | null,
     //Makes no sense to update transfer admin. ...Or is it?
     transfer_admin: Address | null,
     wallet_code: Cell,
@@ -38,7 +38,7 @@ export function jettonMinterConfigCellToConfig(config: Cell): JettonMinterConfig
     const sc = config.beginParse()
     const parsed: JettonMinterConfigFull = {
         supply: sc.loadCoins(),
-        admin: sc.loadAddress(),
+        admin: sc.loadMaybeAddress(),
         transfer_admin: sc.loadMaybeAddress(),
         wallet_code: sc.loadRef(),
         jetton_content: sc.loadRef()
@@ -164,7 +164,7 @@ export class JettonMinter implements Contract {
         await provider.internal(via, {
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: JettonMinter.mintMessage(to, jetton_amount, from, response_addr, customPayload, forward_ton_amount, total_ton_amount),
-            value: total_ton_amount,
+            value: total_ton_amount + toNano('0.05'),
         });
     }
 
