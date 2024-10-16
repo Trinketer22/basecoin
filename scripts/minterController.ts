@@ -11,7 +11,7 @@ const adminActions  = ['Mint', 'Change admin', 'Drop admin', 'Change metadata', 
 const userActions   = ['Info', 'Top up', 'Claim admin', 'Quit'];
 let minterCode: Cell;
 let walletCode: Cell;
-let adminAddress: Address;
+let adminAddress: Address | null;
 let decimals: number;
 
 
@@ -208,7 +208,7 @@ const updateData = async (oldData: Cell, ui: UIProvider) => {
         }
         retry = !(await promptBool(`New config:${JSON.stringify({
             supply: newConfig.supply.toString(),
-            admin: newConfig.admin.toString(),
+            admin: newConfig.admin?.toString(),
             transfer_admin: newConfig.transfer_admin?.toString(),
             wallet_code: updateWallet ? "updated" : "preserved"
         }, null, 2)}\nIs it okay?`, ['Yes', 'No'], ui));
@@ -295,7 +295,19 @@ export async function run(provider: NetworkProvider) {
             decimals     = verifyRes.decimals;
         }
         catch(e) {
-            retry = true;
+            ui.write(`Doesn't look like minter:${e}`);
+            if(!(await promptBool("Are you sure it is the one", ['Yes', 'No'], ui, true))) {
+                return;
+            }
+
+            jettonMinterContract = provider.open(
+                JettonMinter.createFromAddress(minterAddress)
+            );
+            adminAddress = await jettonMinterContract.getAdminAddress();
+            ui.write("Ok, boss!");
+            decimals = Number(
+                await promptAmount("Please specify contract decimals:", 0, ui)
+            );
         }
     } while(retry);
 
