@@ -1,9 +1,7 @@
 # Base Jetton
 
-Made from [Jetton with governance(stablecoin)](https://github.com/ton-blockchain/stablecoin-contract) by removing governance functionality.
-Also burning is allowed.
-
-# Local Development
+Sources originaly taken from [FunC version](https://github.com/EmelyanenkoK/basecoin)
+Converted to [TOLK language](https://docs.ton.org/v3/documentation/smart-contracts/tolk/overview)
 
 ## Install Dependencies
 
