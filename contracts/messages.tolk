@@ -1,18 +1,18 @@
-const `MSG_INFO_REST_BITS` = 1 + 4 + 4 + 64 + 32;
+const MSG_INFO_REST_BITS = 1 + 4 + 4 + 64 + 32;
 
-const `MSG_WITH_STATE_INIT_AND_BODY_SIZE` = `MSG_INFO_REST_BITS` + 1 + 1 + 1;
-const `MSG_HAVE_STATE_INIT` = 4;
-const `MSG_STATE_INIT_IN_REF` = 2;
-const `MSG_BODY_IN_REF` = 1;
-const `MSG_ONLY_BODY_SIZE` = MSG_INFO_REST_BITS + 1 + 1;
+const MSG_WITH_STATE_INIT_AND_BODY_SIZE = `MSG_INFO_REST_BITS` + 1 + 1 + 1;
+const MSG_HAVE_STATE_INIT = 4;
+const MSG_STATE_INIT_IN_REF = 2;
+const MSG_BODY_IN_REF = 1;
+const MSG_ONLY_BODY_SIZE = MSG_INFO_REST_BITS + 1 + 1;
 
 // Creates an output action which would reserve exactly x nanograms (if y = 0).
-const `RESERVE_REGULAR` = 0;
+const RESERVE_REGULAR = 0;
 // Creates an output action which would reserve at most x nanograms (if y = 2).
 // Bit +2 in y means that the external action does not fail if the specified amount cannot be reserved; instead, all remaining balance is reserved.
-const `RESERVE_AT_MOST` = 2;
+const RESERVE_AT_MOST = 2;
 // in the case of action fail - bounce transaction. No effect if RESERVE_AT_MOST (+2) is used. TVM UPGRADE 2023-07. https://docs.ton.org/learn/tvm-instructions/tvm-upgrade-2023-07#sending-messages
-const `RESERVE_BOUNCE_ON_ACTION_FAIL` = 16;
+const RESERVE_BOUNCE_ON_ACTION_FAIL = 16;
 
 @inline
 fun loadOp(mutate self: slice) {
@@ -30,8 +30,8 @@ fun loadQueryId(mutate self: slice) {
 }
 
 @inline
-fun storeQueryId(mutate self: builder, query_id: int) {
-    return self.storeUint(query_id, 64);
+fun storeQueryId(mutate self: builder, queryId: int) {
+    return self.storeUint(queryId, 64);
 }
 
 @inline
@@ -45,8 +45,8 @@ fun loadOpAndQueryId(mutate self: slice) {
 }
 
 @inline
-fun storeMsgFlagsAndAddressNone(mutate self: builder, msg_flags: int) {
-    return self.storeUint(msg_flags, 6);
+fun storeMsgFlagsAndAddressNone(mutate self: builder, msgFlags: int) {
+    return self.storeUint(msgFlags, 6);
 }
 
 @inline
@@ -55,21 +55,19 @@ fun loadMsgFlags(mutate self: slice) {
 }
 
 @inline
-fun retrieveFwdFee(in_msg_full: slice) {
+fun retrieveFwdFee(inMsgFull: slice) {
 
-    in_msg_full.loadAddress();
-    in_msg_full.loadCoins();
-    in_msg_full.skipDict();
-    in_msg_full.loadCoins();
-    var fwd_fee: int = in_msg_full.loadCoins();
-
-    return fwd_fee;
+    inMsgFull.loadAddress();
+    inMsgFull.loadCoins();
+    inMsgFull.skipDict();
+    inMsgFull.loadCoins();
+    return inMsgFull.loadCoins();
 }
 
 @inline
-fun storeStateinitRefAndBodyRef(b: builder, state_init: cell, body: cell) {
-    return b.storeUint(`MSG_HAVE_STATE_INIT` + `MSG_STATE_INIT_IN_REF` + `MSG_BODY_IN_REF`, `MSG_WITH_STATE_INIT_AND_BODY_SIZE`)
-            .storeRef(state_init)
+fun storeStateinitRefAndBodyRef(b: builder, stateInit: cell, body: cell) {
+    return b.storeUint(MSG_HAVE_STATE_INIT + MSG_STATE_INIT_IN_REF + MSG_BODY_IN_REF, MSG_WITH_STATE_INIT_AND_BODY_SIZE)
+            .storeRef(stateInit)
             .storeRef(body);
 }
 
