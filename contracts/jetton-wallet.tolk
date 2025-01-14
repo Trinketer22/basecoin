@@ -1,6 +1,6 @@
 // Jetton Wallet Smart Contract
 
-tolk 0.6
+tolk 0.7
 
 import "@stdlib/gas-payments"
 
@@ -123,7 +123,7 @@ fun receiveJettons(inMsgBody: slice, senderAddress: slice, myTonBalance: int, ms
         sendRawMessage(msg, SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     }
 
-    if (~ isAddressNone(responseAddress)) {
+    if (! isAddressNone(responseAddress)) {
         var toLeaveOnBalance: int = myTonBalance - msgValue + getMyStorageDuePayment();
         reserveToncoinsOnBalance(max(toLeaveOnBalance, calculateJettonWalletMinStorageFee()), RESERVE_AT_MOST);
 
@@ -152,7 +152,7 @@ fun burnJettons(inMsgBody: slice, senderAddress: slice, msgValue: int) {
     inMsgBody.assertEndOfSlice();
 
     balance -= jettonAmount;
-    var isFromOwner: int = isSliceBitsEqual(ownerAddress, senderAddress);
+    var isFromOwner: bool = isSliceBitsEqual(ownerAddress, senderAddress);
     assert(isFromOwner) throw `error::not_owner`;
     assert(balance >= 0) throw `error::balance_error`;
 

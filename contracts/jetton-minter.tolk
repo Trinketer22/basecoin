@@ -1,6 +1,6 @@
 // Jetton minter smart contract
 
-tolk 0.6
+tolk 0.7
 
 import "@stdlib/tvm-dicts"
 import "@stdlib/gas-payments"
@@ -41,7 +41,7 @@ fun saveData(totalSupply: int, adminAddress: slice, nextAdminAddress: slice, jet
 }
 
 @inline
-fun sendToJettonWallet(toAddress: slice, jettonWalletCode: cell, tonAmount: int, masterMsg: cell, needStateInit: int) {
+fun sendToJettonWallet(toAddress: slice, jettonWalletCode: cell, tonAmount: int, masterMsg: cell, needStateInit: bool) {
     reserveToncoinsOnBalance(ONE_TON, RESERVE_REGULAR); // reserve for storage fees
 
     var stateInit: cell = calculateJettonWalletStateInit(toAddress, getMyAddress(), jettonWalletCode);
@@ -121,7 +121,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         var responseAddress: slice = inMsgBody.loadAddress();
         inMsgBody.assertEndOfSlice();
 
-        if (~ isAddressNone(responseAddress)) {
+        if (! isAddressNone(responseAddress)) {
             // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
             var msg = beginCell()
             .storeMsgFlagsAndAddressNone(NON_BOUNCEABLE)
@@ -138,7 +138,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     if (op == `op::provide_wallet_address`) {
         // see provide_wallet_address TL-B layout in jetton.tlb
         var ownerAddress: slice = inMsgBody.loadAddress();
-        var isIncludeAddress: int = inMsgBody.loadBool();
+        var isIncludeAddress: bool = inMsgBody.loadBool();
         inMsgBody.assertEndOfSlice();
 
         var includedAddress: cell = isIncludeAddress
@@ -219,7 +219,7 @@ fun buildContentCell(metadataUri: slice): cell {
     return createTokenOnchainMetadata(contentDict);
 }
 
-get get_jetton_data(): (int, int, slice, cell, cell) {
+get get_jetton_data(): (int, bool, slice, cell, cell) {
     var (totalSupply: int, adminAddress: slice, nextAdminAddress: slice, jettonWalletCode: cell, metadataUri: cell) = loadData();
     return (totalSupply, true, adminAddress, buildContentCell(metadataUri.beginParse()), jettonWalletCode);
 }

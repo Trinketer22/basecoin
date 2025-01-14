@@ -4,7 +4,7 @@ import "op-codes.tolk"
 const MY_WORKCHAIN = BASECHAIN;
 
 @inline
-fun isSameWorkchain(addr: slice): int {
+fun isSameWorkchain(addr: slice): bool {
     var (wc: int, _) = parseStandardAddress(addr);
     return wc == MY_WORKCHAIN;
 }
