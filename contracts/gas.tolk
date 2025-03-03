@@ -72,7 +72,7 @@ fun forwardInitStateOverhead(): int {
 fun checkAmountIsEnoughToTransfer(msgValue: int, forwardTonAmount: int, fwdFee: int) {
     var fwdCount: int = forwardTonAmount ? 2 : 1; // second sending (forward) will be cheaper that first
 
-    var jettonWalletGasConsumption: int = getPrecompiledGasConsumption();
+    var jettonWalletGasConsumption: int? = getPrecompiledGasConsumption();
     var sendTransferGasConsumption: int = (jettonWalletGasConsumption == null) ? SEND_TRANSFER_GAS_CONSUMPTION : jettonWalletGasConsumption;
     var receiveTransferGasConsumption: int = (jettonWalletGasConsumption == null) ? RECEIVE_TRANSFER_GAS_CONSUMPTION : jettonWalletGasConsumption;
 
@@ -87,12 +87,12 @@ fun checkAmountIsEnoughToTransfer(msgValue: int, forwardTonAmount: int, fwdFee: 
     calculateJettonWalletMinStorageFee()) throw `error::not_enough_gas`;
 }
 
-fun getPrecompiledGasConsumption(): int
+fun getPrecompiledGasConsumption(): int?
     asm "GETPRECOMPILEDGAS";
 
 @inline
 fun checkAmountIsEnoughToBurn(msgValue: int) {
-    var jettonWalletGasConsumption: int = getPrecompiledGasConsumption();
+    var jettonWalletGasConsumption: int? = getPrecompiledGasConsumption();
     var sendBurnGasConsumption: int = (jettonWalletGasConsumption == null) ? SEND_BURN_GAS_CONSUMPTION : jettonWalletGasConsumption;
 
     assert(msgValue > calculateMessageFee(MY_WORKCHAIN, BURN_NOTIFICATION_BITS, BURN_NOTIFICATION_CELLS) + calculateGasFee(MY_WORKCHAIN, sendBurnGasConsumption) + calculateGasFee(MY_WORKCHAIN, RECEIVE_BURN_GAS_CONSUMPTION)) throw `error::not_enough_gas`;

@@ -66,12 +66,12 @@ fun checkEitherForwardPayload(s: slice) {
 }
 
 @inline
-fun setTokenSnakeMetadataEntry(mutate self: cell, key: int, value: slice) {
+fun setTokenSnakeMetadataEntry(mutate self: cell?, key: int, value: slice) {
     self.uDictSetRef(256, key, beginCell().storeUint(0, 8).storeSlice(value).endCell());
     return self;
 }
 
 @inline
-fun createTokenOnchainMetadata(content: cell) {
+fun createTokenOnchainMetadata(content: cell?) {
     return beginCell().storeUint(0, 8).storeDict(content).endCell();
 }

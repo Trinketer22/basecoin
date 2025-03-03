@@ -1,6 +1,6 @@
 // Jetton Wallet Smart Contract
 
-tolk 0.7
+tolk 0.9
 
 import "@stdlib/gas-payments"
 
