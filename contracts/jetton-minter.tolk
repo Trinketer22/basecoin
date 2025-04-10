@@ -1,6 +1,6 @@
 // Jetton minter smart contract
 
-tolk 0.9
+tolk 0.10
 
 import "@stdlib/tvm-dicts"
 import "@stdlib/gas-payments"
@@ -214,8 +214,8 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
 @inline
 fun buildContentCell(metadataUri: slice): cell {
     var contentDict: cell? = createEmptyDict();
-    contentDict.setTokenSnakeMetadataEntry("uri"H, metadataUri);
-    contentDict.setTokenSnakeMetadataEntry("decimals"H, "6");
+    contentDict.setTokenSnakeMetadataEntry(stringSha256("uri"), metadataUri);
+    contentDict.setTokenSnakeMetadataEntry(stringSha256("decimals"), "6");
     return createTokenOnchainMetadata(contentDict);
 }
 
