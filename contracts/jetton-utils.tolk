@@ -3,6 +3,7 @@ import "workchain.tolk"
 import "op-codes.tolk"
 
 const STATUS_SIZE = 4;
+const SHARD_DEPTH = 8;
 
 @inline
 fun packJettonWalletData(status: int, balance: int, ownerAddress: slice, jettonMasterAddress: slice): cell {
@@ -14,6 +15,11 @@ fun packJettonWalletData(status: int, balance: int, ownerAddress: slice, jettonM
     .endCell();
 }
 
+@inline fun getAddressShard(address: slice, shardLen: int) {
+    // Skip workchain, load shard prefix
+    return address.skipBits(3 + 8).loadUint(shardLen);
+}
+
 @inline
 fun calculateJettonWalletStateInit(ownerAddress: slice, jettonMasterAddress: slice, jettonWalletCode: cell): cell {
     /*
@@ -23,7 +29,10 @@ fun calculateJettonWalletStateInit(ownerAddress: slice, jettonMasterAddress: sli
     library:(Maybe ^Cell) = StateInit;
   */
     return beginCell()
-    .storeUint(0, 2) // 0b00 - No split_depth; No special
+    // Compilator would take care of storeUint optimization, right?
+    .storeUint(1, 1)
+    .storeUint(SHARD_DEPTH, 5)
+    .storeUint(0, 1)
     .storeMaybeRef(jettonWalletCode)
     .storeMaybeRef(
         packJettonWalletData(
@@ -37,22 +46,27 @@ fun calculateJettonWalletStateInit(ownerAddress: slice, jettonMasterAddress: sli
 }
 
 @inline
-fun calculateJettonWalletAddress(stateInit: cell): slice {
+fun calculateJettonWalletAddress(ownerShard: int, stateInit: cell): slice {
     /*
     https://github.com/ton-blockchain/ton/blob/8a9ff339927b22b72819c5125428b70c406da631/crypto/block/block.tlb#L105
     addr_std$10 anycast:(Maybe Anycast) workchain_id:int8 address:bits256  = MsgAddressInt;
     */
+    var mask = (1 << (256 - SHARD_DEPTH)) - 1;
+    var prefixLess = cellHash(stateInit) & mask;
     return beginCell()
     .storeUint(4, 3) // 0b100 = addr_std$10 tag; No anycast
     .storeInt(MY_WORKCHAIN, 8)
-    .storeUint(cellHash(stateInit), 256)
+    .storeUint(ownerShard, SHARD_DEPTH)
+    .storeUint(prefixLess, 256 - SHARD_DEPTH)
+    // .storeUint((ownerShard << (256 - SHARD_DEPTH)) | (cellHash(stateInit) << SHARD_DEPTH), 256)
     .endCell()
     .beginParse();
 }
 
 @inline
 fun calculateUserJettonWalletAddress(ownerAddress: slice, jettonMasterAddress: slice, jettonWalletCode: cell): slice {
-    return calculateJettonWalletAddress(calculateJettonWalletStateInit(ownerAddress, jettonMasterAddress, jettonWalletCode));
+    var shardPrefix = getAddressShard(ownerAddress, SHARD_DEPTH);
+    return calculateJettonWalletAddress(shardPrefix, calculateJettonWalletStateInit(ownerAddress, jettonMasterAddress, jettonWalletCode));
 }
 
 @inline

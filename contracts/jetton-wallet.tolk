@@ -52,8 +52,9 @@ fun sendJettons(inMsgBody: slice, senderAddress: slice, msgValue: int, fwdFee: i
     balance -= jettonAmount;
     assert(balance >= 0) throw `error::balance_error`;
 
+    var toShard: int = getAddressShard(toOwnerAddress, SHARD_DEPTH);
     var stateInit: cell = calculateJettonWalletStateInit(toOwnerAddress, jettonMasterAddress, getContractCode());
-    var toWalletAddress: slice = calculateJettonWalletAddress(stateInit);
+    var toWalletAddress: slice = calculateJettonWalletAddress(toShard, stateInit);
     var responseAddress: slice = inMsgBody.loadAddress();
     inMsgBody.skipMaybeRef(); // custom_payload
     var forwardTonAmount: int = inMsgBody.loadCoins();
@@ -95,9 +96,10 @@ fun receiveJettons(inMsgBody: slice, senderAddress: slice, myTonBalance: int, ms
     balance += jettonAmount;
     var fromAddress: slice = inMsgBody.loadAddress();
     var responseAddress: slice = inMsgBody.loadAddress();
-    assert(isSliceBitsEqual(jettonMasterAddress, senderAddress)
-        |
-        isSliceBitsEqual(calculateUserJettonWalletAddress(fromAddress, jettonMasterAddress, getContractCode()), senderAddress)) throw `error::not_valid_wallet`;
+    // Manual condition optimization
+    if(!isSliceBitsEqual(jettonMasterAddress, senderAddress)) {
+        assert(isSliceBitsEqual(calculateUserJettonWalletAddress(fromAddress, jettonMasterAddress, getContractCode()), senderAddress)) throw `error::not_valid_wallet`;
+    }
     var forwardTonAmount: int = inMsgBody.loadCoins();
 
     if (forwardTonAmount) {

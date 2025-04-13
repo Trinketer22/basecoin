@@ -44,8 +44,9 @@ fun saveData(totalSupply: int, adminAddress: slice, nextAdminAddress: slice, jet
 fun sendToJettonWallet(toAddress: slice, jettonWalletCode: cell, tonAmount: int, masterMsg: cell, needStateInit: bool) {
     reserveToncoinsOnBalance(ONE_TON, RESERVE_REGULAR); // reserve for storage fees
 
+    var toShard: int = getAddressShard(toAddress, SHARD_DEPTH);
     var stateInit: cell = calculateJettonWalletStateInit(toAddress, getMyAddress(), jettonWalletCode);
-    var toWalletAddress: slice = calculateJettonWalletAddress(stateInit);
+    var toWalletAddress: slice = calculateJettonWalletAddress(toShard, stateInit);
 
     // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
     var msg = beginCell()
