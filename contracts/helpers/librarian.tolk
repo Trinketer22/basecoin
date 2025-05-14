@@ -21,10 +21,10 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     var sender: slice = cs.loadAddress();
 
 
-    var libToPublish: cell = getContractData();
+    var libToPublish: cell = contract.getData();
 
     var initialGas: int = getGasConsumedAtTheMoment();
-    var (orderCells: int, orderBits: int, _) = calculateCellSizeStrict(libToPublish, 2048);
+    var (orderCells: int, orderBits: int, _) = libToPublish.calculateSizeStrict(2048);
     var sizeCountingGas: int = getGasConsumedAtTheMoment() - initialGas;
 
     var toReserve: int = calculateGasFeeWithoutFlatPrice(MASTERCHAIN, sizeCountingGas) +
@@ -40,6 +40,6 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     // https://docs.ton.org/tvm.pdf, page 138, SETLIBCODE
     setLibCode(libToPublish, 2);  // if x = 2, the library is added as a public library (and becomes available to all smart contracts if the current smart contract resides in the masterchain);
     // brick contract
-    setContractCodePostponed(empty());
-    setContractData(empty());
+    contract.setCodePostponed(empty());
+    contract.setData(empty());
 }

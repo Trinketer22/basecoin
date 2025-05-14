@@ -45,7 +45,7 @@ fun calculateJettonWalletAddress(stateInit: cell): slice {
     return beginCell()
     .storeUint(4, 3) // 0b100 = addr_std$10 tag; No anycast
     .storeInt(MY_WORKCHAIN, 8)
-    .storeUint(cellHash(stateInit), 256)
+    .storeUint(cell.hash(stateInit), 256)
     .endCell()
     .beginParse();
 }
@@ -59,14 +59,14 @@ fun calculateUserJettonWalletAddress(ownerAddress: slice, jettonMasterAddress: s
 fun checkEitherForwardPayload(s: slice) {
     if (s.preloadUint(1)) {
         // forward_payload in ref
-        var (remainBits: int, remainRefs: int) = getRemainingBitsAndRefsCount(s);
+        var (remainBits: int, remainRefs: int) = s.remainingBitsAndRefsCount();
         assert((remainRefs == 1) & (remainBits == 1)) throw `error::invalid_message`; // we check that there is no excess in the slice
     }
     // else forward_payload in slice - arbitrary bits and refs
 }
 
 @inline
-fun setTokenSnakeMetadataEntry(mutate self: cell?, key: int, value: slice) {
+fun cell?.setTokenSnakeMetadataEntry(mutate self, key: int, value: slice) {
     self.uDictSetRef(256, key, beginCell().storeUint(0, 8).storeSlice(value).endCell());
     return self;
 }

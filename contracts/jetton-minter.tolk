@@ -15,7 +15,7 @@ import "gas.tolk"
 // storage#_ total_supply:Coins admin_address:MsgAddress next_admin_address:MsgAddress jetton_wallet_code:^Cell metadata_uri:^Cell = Storage;
 @inline
 fun loadData(): (int, slice, slice, cell, cell) {
-    var ds: slice = getContractData().beginParse();
+    var ds: slice = contract.getData().beginParse();
     var data = (
         ds.loadCoins(), // total_supply
         ds.loadAddress(), // admin_address
@@ -23,13 +23,13 @@ fun loadData(): (int, slice, slice, cell, cell) {
         ds.loadRef(),  // jetton_wallet_code
         ds.loadRef()  // metadata url (contains snake slice without 0x0 prefix)
     );
-    ds.assertEndOfSlice();
+    ds.assertEnd();
     return data;
 }
 
 @inline
 fun saveData(totalSupply: int, adminAddress: slice, nextAdminAddress: slice, jettonWalletCode: cell, metadataUri: cell) {
-    setContractData(
+    contract.setData(
         beginCell()
         .storeCoins(totalSupply)
         .storeSlice(adminAddress)
@@ -44,7 +44,7 @@ fun saveData(totalSupply: int, adminAddress: slice, nextAdminAddress: slice, jet
 fun sendToJettonWallet(toAddress: slice, jettonWalletCode: cell, tonAmount: int, masterMsg: cell, needStateInit: bool) {
     reserveToncoinsOnBalance(ONE_TON, RESERVE_REGULAR); // reserve for storage fees
 
-    var stateInit: cell = calculateJettonWalletStateInit(toAddress, getMyAddress(), jettonWalletCode);
+    var stateInit: cell = calculateJettonWalletStateInit(toAddress, contract.getAddress(), jettonWalletCode);
     var toWalletAddress: slice = calculateJettonWalletAddress(stateInit);
 
     // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
@@ -87,12 +87,12 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     var (totalSupply: int, adminAddress: slice, nextAdminAddress: slice, jettonWalletCode: cell, metadataUri: cell) = loadData();
 
     if (op == `op::mint`) {
-        assert(isSliceBitsEqual(senderAddress, adminAddress)) throw `error::not_owner`;
+        assert(slice.bitsEqual(senderAddress, adminAddress)) throw `error::not_owner`;
         var toAddress: slice = inMsgBody.loadAddress();
         checkSameWorkchain(toAddress);
         var tonAmount: int = inMsgBody.loadCoins();
         var masterMsg: cell = inMsgBody.loadRef();
-        inMsgBody.assertEndOfSlice();
+        inMsgBody.assertEnd();
 
         // see internal_transfer TL-B layout in jetton.tlb
         var masterMsgSlice: slice = masterMsg.beginParse();
@@ -116,12 +116,12 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         // see burn_notification TL-B layout in jetton.tlb
         var jettonAmount: int = inMsgBody.loadCoins();
         var fromAddress: slice = inMsgBody.loadAddress();
-        assert(isSliceBitsEqual(calculateUserJettonWalletAddress(fromAddress, getMyAddress(), jettonWalletCode), senderAddress)) throw `error::not_valid_wallet`;
+        assert(slice.bitsEqual(calculateUserJettonWalletAddress(fromAddress, contract.getAddress(), jettonWalletCode), senderAddress)) throw `error::not_valid_wallet`;
         saveData(totalSupply - jettonAmount, adminAddress, nextAdminAddress, jettonWalletCode, metadataUri);
         var responseAddress: slice = inMsgBody.loadAddress();
-        inMsgBody.assertEndOfSlice();
+        inMsgBody.assertEnd();
 
-        if (! isAddressNone(responseAddress)) {
+        if (! addressIsNone(responseAddress)) {
             // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
             var msg = beginCell()
             .storeMsgFlagsAndAddressNone(NON_BOUNCEABLE)
@@ -139,7 +139,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         // see provide_wallet_address TL-B layout in jetton.tlb
         var ownerAddress: slice = inMsgBody.loadAddress();
         var isIncludeAddress: bool = inMsgBody.loadBool();
-        inMsgBody.assertEndOfSlice();
+        inMsgBody.assertEnd();
 
         var includedAddress: cell? = isIncludeAddress
         ? beginCell().storeSlice(ownerAddress).endCell()
@@ -155,7 +155,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         .storeQueryId(queryId);
 
         if (isSameWorkchain(ownerAddress)) {
-            msg = msg.storeSlice(calculateUserJettonWalletAddress(ownerAddress, getMyAddress(), jettonWalletCode));
+            msg = msg.storeSlice(calculateUserJettonWalletAddress(ownerAddress, contract.getAddress(), jettonWalletCode));
         } else {
             msg = msg.storeAddressNone();
         }
@@ -167,39 +167,39 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     }
 
     if (op == `op::change_admin`) {
-        assert(isSliceBitsEqual(senderAddress, adminAddress)) throw `error::not_owner`;
+        assert(senderAddress.bitsEqual(adminAddress)) throw `error::not_owner`;
         nextAdminAddress = inMsgBody.loadAddress();
-        inMsgBody.assertEndOfSlice();
+        inMsgBody.assertEnd();
         saveData(totalSupply, adminAddress, nextAdminAddress, jettonWalletCode, metadataUri);
         return;
     }
 
     if (op == `op::claim_admin`) {
-        inMsgBody.assertEndOfSlice();
-        assert(isSliceBitsEqual(senderAddress, nextAdminAddress)) throw `error::not_owner`;
+        inMsgBody.assertEnd();
+        assert(senderAddress.bitsEqual(nextAdminAddress)) throw `error::not_owner`;
         saveData(totalSupply, nextAdminAddress, createAddressNone(), jettonWalletCode, metadataUri);
         return;
     }
 
 
     if (op == `op::change_metadata_uri`) {
-        assert(isSliceBitsEqual(senderAddress, adminAddress)) throw `error::not_owner`;
+        assert(senderAddress.bitsEqual(adminAddress)) throw `error::not_owner`;
         saveData(totalSupply, adminAddress, nextAdminAddress, jettonWalletCode, beginCell().storeSlice(inMsgBody).endCell());
         return;
     }
 
     if (op == `op::upgrade`) {
-        assert(isSliceBitsEqual(senderAddress, adminAddress)) throw `error::not_owner`;
+        assert(senderAddress.bitsEqual(adminAddress)) throw `error::not_owner`;
         var (newData: cell, newCode: cell) = (inMsgBody.loadRef(), inMsgBody.loadRef());
-        inMsgBody.assertEndOfSlice();
-        setContractData(newData);
-        setContractCodePostponed(newCode);
+        inMsgBody.assertEnd();
+        contract.setData(newData);
+        contract.setCodePostponed(newCode);
         return;
     }
 
     if (op == `op::drop_admin`) { // copy from notcoin
-        assert(isSliceBitsEqual(senderAddress, adminAddress)) throw `error::not_owner`;
-        inMsgBody.assertEndOfSlice();
+        assert(senderAddress.bitsEqual(adminAddress)) throw `error::not_owner`;
+        inMsgBody.assertEnd();
         saveData(totalSupply, createAddressNone(), createAddressNone(), jettonWalletCode, metadataUri);
         return;
     }
@@ -226,7 +226,7 @@ get get_jetton_data(): (int, bool, slice, cell, cell) {
 
 get get_wallet_address(ownerAddress: slice): slice {
     var (totalSupply: int, adminAddress: slice, nextAdminAddress: slice, jettonWalletCode: cell, metadataUri: cell) = loadData();
-    return calculateUserJettonWalletAddress(ownerAddress, getMyAddress(), jettonWalletCode);
+    return calculateUserJettonWalletAddress(ownerAddress, contract.getAddress(), jettonWalletCode);
 }
 
 get get_next_admin_address(): slice {
