@@ -5,10 +5,10 @@ import { jettonContentToCell, JettonMinter, JettonMinterContent } from '../wrapp
 import '@ton/test-utils';
 import {findTransactionRequired} from '@ton/test-utils';
 import { compile } from '@ton/blueprint';
-import { randomAddress, getRandomTon, differentAddress, getRandomInt } from './utils';
+import { randomAddress, getRandomTon, differentAddress, getRandomInt, testJettonInternalTransfer } from './utils';
 import { Op, Errors } from '../wrappers/JettonConstants';
 import { calcStorageFee, collectCellStats, computeFwdFees, computeFwdFeesVerbose, FullFees, GasPrices, getGasPrices, getMsgPrices, getStoragePrices, computedGeneric, storageGeneric, MsgPrices, setGasPrice, setMsgPrices, setStoragePrices, StorageStats, StorageValue } from '../gasUtils';
-import { sha256 } from '@ton/crypto';
+import { getSecureRandomBytes, sha256 } from '@ton/crypto';
 
 /*
    These tests check compliance with the TEP-74 and TEP-89,
@@ -311,6 +311,9 @@ describe('JettonWallet', () => {
         });
 		*/
 
+        // Should match deployer shard
+        expect(deployerJettonWallet.address.hash[0]).toEqual(deployer.address.hash[0]);
+
         expect(await deployerJettonWallet.getJettonBalance()).toEqual(initialJettonBalance);
         expect(await jettonMinter.getTotalSupply()).toEqual(initialTotalSupply + initialJettonBalance);
         initialTotalSupply += initialJettonBalance;
@@ -533,6 +536,7 @@ describe('JettonWallet', () => {
             to: notDeployer.address,
             value: forwardAmount
         });
+        expect(notDeployerJettonWallet.address.hash[0]).toEqual(notDeployer.address.hash[0]);
 
         const balanceAfter = (await blockchain.getContract(notDeployerJettonWallet.address)).balance;
         // Make sure we're not draining balance
@@ -989,6 +993,10 @@ describe('JettonWallet', () => {
                      forward_payload:(Either Cell ^Cell)
                      = InternalMsgBody;
 */
+        const differentShard = Buffer.copyBytesFrom(deployer.address.hash);
+        differentShard[0] = (differentShard[0] + 1) % 256;
+        const sameSuffixDifferentShard = new Address(deployer.address.workChain, differentShard);
+
         let internalTransfer = beginCell().storeUint(0x178d4519, 32).storeUint(0, 64) //default queryId
                               .storeCoins(toNano('0.01'))
                               .storeAddress(deployer.address)
@@ -996,19 +1004,22 @@ describe('JettonWallet', () => {
                               .storeCoins(toNano('0.05'))
                               .storeUint(0, 1)
                   .endCell();
-        const sendResult = await blockchain.sendMessage(internal({
-                    from: notDeployer.address,
-                    to: deployerJettonWallet.address,
-                    body: internalTransfer,
-                    value:toNano('0.3')
-                }));
-        expect(sendResult.transactions).toHaveTransaction({
-            from: notDeployer.address,
-            to: deployerJettonWallet.address,
-            aborted: true,
-            exitCode: Errors.not_valid_wallet, //error::unauthorized_incoming_transfer
-        });
-        expect(await deployerJettonWallet.getJettonBalance()).toEqual(initialJettonBalance);
+        // Just in case test for totaly different addr and only different in prefix
+        for(let testAddress of [notDeployer.address, sameSuffixDifferentShard]) {
+            const sendResult = await blockchain.sendMessage(internal({
+                        from: testAddress,
+                        to: deployerJettonWallet.address,
+                        body: internalTransfer,
+                        value:toNano('0.3')
+                    }));
+            expect(sendResult.transactions).toHaveTransaction({
+                from: testAddress,
+                to: deployerJettonWallet.address,
+                aborted: true,
+                exitCode: Errors.not_valid_wallet, //error::unauthorized_incoming_transfer
+            });
+            expect(await deployerJettonWallet.getJettonBalance()).toEqual(initialJettonBalance);
+        }
     });
 
     // Yeah, you got that right
@@ -1146,21 +1157,42 @@ describe('JettonWallet', () => {
                .endCell();
         }
 
-        let res = await blockchain.sendMessage(internal({
-            from: deployerJettonWallet.address,
-            to: jettonMinter.address,
-            body: burnNotification(burnAmount, randomAddress(0)),
-            value: toNano('0.1')
-        }));
+        // Same deal here
+        const differentShard = Buffer.copyBytesFrom(deployer.address.hash);
+        differentShard[0] = (differentShard[0] + 1) % 256;
+        const sameSuffixDifferentShard = new Address(deployer.address.workChain, differentShard);
 
-        expect(res.transactions).toHaveTransaction({
-            from: deployerJettonWallet.address,
-            to: jettonMinter.address,
-            aborted: true,
-            exitCode: Errors.not_valid_wallet// Unauthorized burn
-        });
+        for(let testAddress of [differentAddress(deployer.address), sameSuffixDifferentShard]) {
+            for(let i = 0; i < 2; i++) {
+                const isEven = i % 2 == 0;
+                let srcAddress: Address;
+                let forAddress: Address;
 
-        res = await blockchain.sendMessage(internal({
+                if(isEven) {
+                    srcAddress = deployerJettonWallet.address;
+                    forAddress = testAddress;
+                } else {
+                    srcAddress = testAddress;
+                    forAddress = deployerJettonWallet.address;
+                }
+
+                const res = await blockchain.sendMessage(internal({
+                    from: srcAddress,
+                    to: jettonMinter.address,
+                    body: burnNotification(burnAmount, forAddress),
+                    value: toNano('0.1')
+                }));
+
+                expect(res.transactions).toHaveTransaction({
+                    from: srcAddress,
+                    to: jettonMinter.address,
+                    aborted: true,
+                    exitCode: Errors.not_valid_wallet// Unauthorized burn
+                });
+            }
+        }
+
+        const res = await blockchain.sendMessage(internal({
             from: deployerJettonWallet.address,
             to: jettonMinter.address,
             body: burnNotification(burnAmount, deployer.address),
@@ -1597,6 +1629,73 @@ describe('JettonWallet', () => {
 
             expect(await getContractCode(jettonMinter.address)).toEqualCell(codeCell);
             expect(await getContractData(jettonMinter.address)).toEqualCell(dataCell);
+        });
+    });
+
+    describe('Shard optimization', () => {
+        const testMint = async (to: Address, expectedAddr: Address) => {
+
+            const res = await jettonMinter.sendMint(deployer.getSender(), to, 1n);
+
+            expect(res.transactions).toHaveTransaction({
+                on: expectedAddr,
+                op: Op.internal_transfer,
+                aborted: false,
+                body: (b) => testJettonInternalTransfer(b!, {
+                    amount: 1n
+                })
+            });
+
+            return res;
+        }
+
+        const testTransfer = async (to: Address, expectedAddr: Address) => {
+            const deployerWallet = await userWallet(deployer.address);
+
+            const res = await deployerWallet.sendTransfer(deployer.getSender(), toNano('0.05'), 1n, to, deployer.address, null, 1n);
+
+            expect(res.transactions).toHaveTransaction({
+                from: deployerWallet.address,
+                on: expectedAddr,
+                op: Op.internal_transfer,
+                aborted: false,
+                body: (b) => testJettonInternalTransfer(b!, {
+                    amount: 1n
+                })
+            });
+
+            return res;
+        }
+
+        const testDiscovery = async (to: Address, expectedAddr: Address) => {
+            for(let includeOwner of [false, true]) {
+                const res = await jettonMinter.sendDiscovery(deployer.getSender(), to, includeOwner);
+
+                expect(res.transactions).toHaveTransaction({
+                    on: deployer.address,
+                    op: Op.take_wallet_address,
+                    body: (b) => {
+                        const ds = b!.beginParse().skip(32 + 64);
+                        return ds.loadAddress().equals(expectedAddr) &&
+                            (includeOwner ? ds.loadMaybeRef()!.equals(beginCell().storeAddress(to).endCell()) : ds.loadMaybeRef() === null)
+                    }
+                });
+            }
+        }
+        it('owner shard optimization should take place in every available action and in all possible shards', async () => {
+            const testHash = await getSecureRandomBytes(32);
+
+            for(let i = 0; i < 255; i++) {
+                testHash[0] = i;
+
+                const dstAddress = new Address(0, testHash);
+                const expWallet = await userWallet(dstAddress);
+                expect(expWallet.address.hash[0]).toEqual(dstAddress.hash[0]);
+
+                await testMint(dstAddress, expWallet.address);
+                await testTransfer(dstAddress, expWallet.address);
+                await testDiscovery(dstAddress, expWallet.address);
+            }
         });
     });
 
