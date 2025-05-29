@@ -52,7 +52,7 @@ fun calculateJettonWalletAddress(ownerShard: int, stateInit: cell): slice {
     addr_std$10 anycast:(Maybe Anycast) workchain_id:int8 address:bits256  = MsgAddressInt;
     */
     var mask = (1 << (256 - SHARD_DEPTH)) - 1;
-    var prefixLess = cellHash(stateInit) & mask;
+    var prefixLess = stateInit.hash() & mask;
     return beginCell()
     .storeUint(4, 3) // 0b100 = addr_std$10 tag; No anycast
     .storeInt(MY_WORKCHAIN, 8)

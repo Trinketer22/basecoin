@@ -45,7 +45,7 @@ fun sendToJettonWallet(toAddress: slice, jettonWalletCode: cell, tonAmount: int,
     reserveToncoinsOnBalance(ONE_TON, RESERVE_REGULAR); // reserve for storage fees
 
     var toShard: int = getAddressShard(toAddress, SHARD_DEPTH);
-    var stateInit: cell = calculateJettonWalletStateInit(toAddress, getMyAddress(), jettonWalletCode);
+    var stateInit: cell = calculateJettonWalletStateInit(toAddress, contract.getAddress(), jettonWalletCode);
     var toWalletAddress: slice = calculateJettonWalletAddress(toShard, stateInit);
 
     // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
