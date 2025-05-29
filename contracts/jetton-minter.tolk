@@ -1,6 +1,6 @@
 // Jetton minter smart contract
 
-tolk 0.10
+tolk 0.12
 
 import "@stdlib/tvm-dicts"
 import "@stdlib/gas-payments"
