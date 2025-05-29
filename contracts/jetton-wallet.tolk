@@ -1,6 +1,6 @@
 // Jetton Wallet Smart Contract
 
-tolk 0.10
+tolk 0.12
 
 import "@stdlib/gas-payments"
 
@@ -23,20 +23,20 @@ import "gas.tolk"
 
 @inline
 fun loadData(): (int, int, slice, slice) {
-    var ds: slice = getContractData().beginParse();
+    var ds: slice = contract.getData().beginParse();
     var data = (
         ds.loadUint(STATUS_SIZE), // status
         ds.loadCoins(), // balance
         ds.loadAddress(), // owner_address
         ds.loadAddress() // jetton_master_address
     );
-    ds.assertEndOfSlice();
+    ds.assertEnd();
     return data;
 }
 
 @inline
 fun saveData(status: int, balance: int, ownerAddress: slice, jettonMasterAddress: slice) {
-    setContractData(packJettonWalletData(status, balance, ownerAddress, jettonMasterAddress));
+    contract.setData(packJettonWalletData(status, balance, ownerAddress, jettonMasterAddress));
 }
 
 @inline_ref
@@ -47,7 +47,7 @@ fun sendJettons(inMsgBody: slice, senderAddress: slice, msgValue: int, fwdFee: i
     var toOwnerAddress: slice = inMsgBody.loadAddress();
     checkSameWorkchain(toOwnerAddress);
     var (status: int, balance: int, ownerAddress: slice, jettonMasterAddress: slice) = loadData();
-    assert(isSliceBitsEqual(ownerAddress, senderAddress)) throw `error::not_owner`;
+    assert(ownerAddress.bitsEqual(senderAddress)) throw `error::not_owner`;
 
     balance -= jettonAmount;
     assert(balance >= 0) throw `error::balance_error`;
@@ -125,8 +125,8 @@ fun receiveJettons(inMsgBody: slice, senderAddress: slice, myTonBalance: int, ms
         sendRawMessage(msg, SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     }
 
-    if (! isAddressNone(responseAddress)) {
-        var toLeaveOnBalance: int = myTonBalance - msgValue + getMyStorageDuePayment();
+    if (! addressIsNone(responseAddress)) {
+        var toLeaveOnBalance: int = myTonBalance - msgValue + contract.getStorageDuePayment();
         reserveToncoinsOnBalance(max(toLeaveOnBalance, calculateJettonWalletMinStorageFee()), RESERVE_AT_MOST);
 
         // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
@@ -151,10 +151,10 @@ fun burnJettons(inMsgBody: slice, senderAddress: slice, msgValue: int) {
     var jettonAmount: int = inMsgBody.loadCoins();
     var responseAddress: slice = inMsgBody.loadAddress();
     inMsgBody.skipMaybeRef(); // custom_payload
-    inMsgBody.assertEndOfSlice();
+    inMsgBody.assertEnd();
 
     balance -= jettonAmount;
-    var isFromOwner: bool = isSliceBitsEqual(ownerAddress, senderAddress);
+    var isFromOwner: bool = ownerAddress.bitsEqual(senderAddress);
     assert(isFromOwner) throw `error::not_owner`;
     assert(balance >= 0) throw `error::balance_error`;
 
@@ -233,7 +233,7 @@ fun onInternalMessage(myTonBalance: int, msgValue: int, inMsgFull: cell, inMsgBo
 
 get get_wallet_data(): (int, slice, slice, cell) {
     var (_, balance: int, ownerAddress: slice, jettonMasterAddress: slice) = loadData();
-    return (balance, ownerAddress, jettonMasterAddress, getContractCode());
+    return (balance, ownerAddress, jettonMasterAddress, contract.getCode());
 }
 
 get get_status(): int {
