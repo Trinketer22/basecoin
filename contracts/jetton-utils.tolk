@@ -58,7 +58,6 @@ fun calculateJettonWalletAddress(ownerShard: int, stateInit: cell): slice {
     .storeInt(MY_WORKCHAIN, 8)
     .storeUint(ownerShard, SHARD_DEPTH)
     .storeUint(prefixLess, 256 - SHARD_DEPTH)
-    // .storeUint((ownerShard << (256 - SHARD_DEPTH)) | (cellHash(stateInit) << SHARD_DEPTH), 256)
     .endCell()
     .beginParse();
 }
