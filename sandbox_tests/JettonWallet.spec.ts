@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract, internal, BlockchainSnapshot, SendMessageResult, BlockchainTransaction } from '@ton/sandbox';
-import { Cell, toNano, beginCell, Address, Transaction, storeAccountStorage, Dictionary, storeMessage, fromNano, DictionaryValue } from '@ton/core';
+import { Cell, toNano, beginCell, Address, Transaction, storeAccountStorage, Dictionary, storeMessage, fromNano, DictionaryValue, storeStateInit } from '@ton/core';
 import { JettonWallet } from '../wrappers/JettonWallet';
 import { jettonContentToCell, JettonMinter, JettonMinterContent } from '../wrappers/JettonMinter';
 import '@ton/test-utils';
@@ -76,12 +76,12 @@ describe('JettonWallet', () => {
         blockchain.now = Math.floor(Date.now() / 1000);
         deployer       = await blockchain.treasury('deployer');
         notDeployer    = await blockchain.treasury('notDeployer');
-        walletStats    = new StorageStats(1038, 3);
+        walletStats    = new StorageStats(1030, 3);
         msgPrices      = getMsgPrices(blockchain.config, 0);
         gasPrices      = getGasPrices(blockchain.config, 0);
         storagePrices  = getStoragePrices(blockchain.config);
         storageDuration= 5 * 365 * 24 * 3600;
-        stateInitStats = new StorageStats(936, 3);
+        stateInitStats = new StorageStats(816, 3);
         defaultContent = {
                            uri: 'https://some_stablecoin.org/meta.json'
                        };
@@ -233,11 +233,16 @@ describe('JettonWallet', () => {
                                                                        fwd_payload);
 
             if(exp) {
-                expect(sendResult.transactions).toHaveTransaction({
+                const transferTx = findTransactionRequired(sendResult.transactions, {
                     on: someWallet.address,
                     op: Op.internal_transfer,
+                    initCode: jwallet_code,
                     success: true
                 });
+                const stateCell = beginCell().store(storeStateInit(transferTx.inMessage!.init!)).endCell();
+                const stateStats = collectCellStats(stateCell, []);
+                expect(stateInitStats.cells).toBeGreaterThanOrEqual(stateStats.cells);
+                expect(stateInitStats.bits).toBeGreaterThanOrEqual(stateStats.bits);
                 if(fwd_amount > 0n) {
                     expect(sendResult.transactions).toHaveTransaction({
                         on: someUserAddr,

@@ -22,7 +22,7 @@ const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600; // 5 years
 //Get calculated in a separate test file [/sandbox_tests/StateInit.spec.ts](StateInit.spec.ts)
 
 //- `JETTON_WALLET_BITS` [/sandbox_tests/StateInit.spec.ts#L92](L92)
-const JETTON_WALLET_BITS = 1038;
+const JETTON_WALLET_BITS = 1030;
 
 //- `JETTON_WALLET_CELLS`: [/sandbox_tests/StateInit.spec.ts#L92](L92)
 const JETTON_WALLET_CELLS = 3;
@@ -31,7 +31,7 @@ const JETTON_WALLET_CELLS = 3;
 // StateInit and AccountStorage (https://github.com/ton-blockchain/ton/blob/master/crypto/block/block.tlb)
 // we count bits as if balances are max possible
 //- `JETTON_WALLET_INITSTATE_BITS` [/sandbox_tests/StateInit.spec.ts#L95](L95)
-const JETTON_WALLET_INITSTATE_BITS = 936;
+const JETTON_WALLET_INITSTATE_BITS = 816;
 //- `JETTON_WALLET_INITSTATE_CELLS` [/sandbox_tests/StateInit.spec.ts#L95](L95)
 const JETTON_WALLET_INITSTATE_CELLS = 3;
 
