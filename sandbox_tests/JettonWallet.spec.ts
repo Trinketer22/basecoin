@@ -217,10 +217,12 @@ describe('JettonWallet', () => {
         testSendFees = async (fees, fwd_amount, fwd_payload, custom_payload, exp) => {
             const deployerJettonWallet = await userWallet(deployer.address);
             let initialJettonBalance   = await deployerJettonWallet.getJettonBalance();
-            const someUserAddr         = randomAddress(0);
+            const someUserAddr         = new Address(0, await getSecureRandomBytes(32));
             const someWallet           = await userWallet(someUserAddr);
 
             let jettonAmount = 1n;
+            const srcSmc = await blockchain.getContract(deployerJettonWallet.address);
+            const balanceBefore = srcSmc.balance;
             const sendResult = await deployerJettonWallet.sendTransfer(deployer.getSender(),
                                                                        fees,
                                                                        jettonAmount,
@@ -250,6 +252,9 @@ describe('JettonWallet', () => {
                         // We do not test for success, because receiving contract would be uninitialized
                     });
                 }
+                expect(srcSmc.balance).toEqual(balanceBefore);
+                const someSmc = await blockchain.getContract(someWallet.address);
+                expect(someSmc.balance).toBeGreaterThanOrEqual(min_tons_for_storage);
                 expect(await deployerJettonWallet.getJettonBalance()).toEqual(initialJettonBalance - jettonAmount);
                 expect(await someWallet.getJettonBalance()).toEqual(jettonAmount);
             }
